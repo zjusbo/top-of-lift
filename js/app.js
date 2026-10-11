@@ -3,6 +3,7 @@ import { MODELS, fetchPoint, fetchRunInfo } from './data.js';
 import { computeHour } from './physics.js';
 import { renderPointChart, summaryText, legendHtml } from './point.js';
 import { MapView } from './map.js';
+import { initFeedback } from './feedback.js';
 import { fmtAlt, dayLabel, el, fmtZoned, utcRunLabel, fmtRelative } from './format.js';
 
 // Launch altitudes: Paragliding Earth takeoff altitude, cross-checked with USGS elevation.
@@ -233,6 +234,7 @@ document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click
 let resizeTimer;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderPoint, 150); });
 
+initFeedback($('#feedback'));
 renderModels();
 renderSites();
 bindSettings();

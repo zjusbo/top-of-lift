@@ -55,7 +55,22 @@
         </details>
       </section>
 
-      <footer class="hint">Weather data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (NOAA HRRR, NAM, GFS). Free tier is for non-commercial use.</footer>
+      <footer class="hint">
+        <div class="feedback" id="feedback">
+          <div id="fb-address">Send feedback: <button type="button" class="linkbtn" id="fb-show">show email address</button></div>
+          <form id="fb-check" class="fb-check" hidden autocomplete="off">
+            <label for="fb-answer" id="fb-question"></label>
+            <div class="row">
+              <input id="fb-answer" inputmode="numeric" aria-describedby="fb-msg">
+              <button class="btn" type="submit">Show</button>
+            </div>
+            <!-- Honeypot: hidden from people, filled in by form bots. -->
+            <input id="fb-website" name="website" tabindex="-1" aria-hidden="true" class="trap">
+            <div id="fb-msg" class="fb-msg" role="status"></div>
+          </form>
+        </div>
+        Weather data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (NOAA HRRR, NAM, GFS). Free tier is for non-commercial use.
+      </footer>
     </aside>
 
     <main>

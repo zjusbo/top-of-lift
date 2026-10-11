@@ -55,6 +55,12 @@ body { margin: 0; background: var(--bg); height: 100vh; display: flex; flex-dire
 .hint.warn { color: var(--warn); }
 .sidebar footer { padding-top: 12px; }
 details summary { cursor: pointer; font-weight: 600; }
+.feedback { margin-bottom: 10px; color: var(--ink); font-size: 13px; }
+.feedback a { word-break: break-all; }
+.linkbtn { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
+.fb-check label { margin: 6px 0 2px; font-weight: 600; }
+.fb-msg { color: var(--warn); margin-top: 4px; min-height: 1em; }
+.trap { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .math { padding-left: 18px; margin: 8px 0; font-size: 12.5px; }
 .math li { margin-bottom: 6px; }
 

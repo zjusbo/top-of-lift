@@ -4,6 +4,8 @@ Paragliding thermal forecast in the style of XC Skies: estimated **top of usable
 from NOAA HRRR / NAM / GFS data via the free [Open-Meteo](https://open-meteo.com/) API.
 Static web page, no build step and no backend.
 
+Live site: <https://zjusbo.github.io/top-of-lift/> (GitHub Pages, deployed from `main`).
+
 ## Run
 
 ES modules need a web server (opening `index.html` as a file won't work):
@@ -63,6 +65,13 @@ the parcel method (`ziMethod: 'parcel'`) for calibration experiments.
 - 3 km models smooth ridges, so slope heating and sea-breeze timing are only partly captured.
 - Cumulus base is a simple spread × 125 m estimate, and TOL is not capped at cloud base.
 - The map arrows show 10 m wind. Launch-altitude wind and wind aloft are in the point view.
+
+## Feedback address
+
+The footer's feedback email is not stored as plain text in the HTML or the repo. `js/feedback.js` keeps
+it reversed and base64-encoded, and shows it only after a visitor answers a small sum. Answers given
+in under a second, or with the hidden honeypot field filled, are rejected. This blocks address
+harvesters, but it is not a full CAPTCHA.
 
 ## Tests
 
