@@ -37,8 +37,25 @@
         <h3>Units</h3>
         <div class="row">
           <select id="alt-unit" aria-label="Altitude unit"><option value="ft">ft</option><option value="m">m</option></select>
-          <select id="wind-unit" aria-label="Wind unit"><option value="kmh">km/h</option><option value="mph">mph</option><option value="kt">kt</option></select>
+          <select id="wind-unit" aria-label="Wind unit"><option value="mph">mph</option><option value="kmh">km/h</option><option value="kt">kt</option></select>
         </div>
+      </section>
+
+      <section id="alerts">
+        <h3>Email alerts</h3>
+        <p class="hint">Get an email when a launch looks flyable: usable lift above launch, with launch wind from S, SW or W under 10 mph. Uses the HRRR forecast, checked every hour.</p>
+        <form id="alert-form" class="alert-form">
+          <input type="email" id="alert-email" required placeholder="you@example.com" aria-label="Your email address" autocomplete="email">
+          <div id="alert-sites" class="alert-sites" role="group" aria-label="Sites"></div>
+          <label for="alert-answer" id="alert-question"></label>
+          <div class="row">
+            <input id="alert-answer" inputmode="numeric" required autocomplete="off">
+            <button class="btn" type="submit">Subscribe</button>
+          </div>
+          <!-- Honeypot: hidden from people, filled in by form bots. -->
+          <input id="alert-website" name="website" tabindex="-1" aria-hidden="true" class="trap" autocomplete="off">
+          <div id="alert-msg" class="fb-msg" role="status"></div>
+        </form>
       </section>
 
       <section>
@@ -79,20 +96,22 @@
       <section id="view-point" class="view">
         <div class="point-head">
           <h2 id="point-title"></h2>
-          <div id="point-meta" class="meta"></div>
         </div>
-        <div id="run-info" class="run-info" hidden></div>
         <div class="day-row">
           <div id="days" class="chips" role="group" aria-label="Day"></div>
           <div id="sun-info" class="sun-info"></div>
         </div>
         <p id="summary" class="summary"></p>
-        <p id="airspace-info" class="airspace-info"></p>
         <div class="chart-wrap">
           <div id="chart"></div>
           <div id="tooltip" class="tooltip" hidden></div>
         </div>
         <div id="legend" class="legend"></div>
+        <section class="details" aria-labelledby="details-title">
+          <h3 id="details-title">Forecast details</h3>
+          <div id="run-info" class="run-info" hidden></div>
+          <div id="point-meta" class="meta"></div>
+        </section>
       </section>
 
       <section id="view-map" class="view" hidden>

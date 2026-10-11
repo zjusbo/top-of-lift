@@ -1,24 +1,27 @@
 // App state and wiring between the sidebar, the point view and the map view.
-import { MODELS, fetchPoint, fetchRunInfo, fetchAirspace, floorMsl, NEARBY_NM } from './data.js';
+import { MODELS, fetchPoint, fetchRunInfo, fetchAirspace, floorMsl } from './data.js';
 import { computeHour } from './physics.js';
 import { renderPointChart, summaryText, legendHtml } from './point.js';
 import { MapView } from './map.js';
 import { initFeedback } from './feedback.js';
+import { initAlerts } from './alerts.js';
 import { fmtAlt, dayLabel, el, fmtZoned, utcRunLabel, fmtRelative } from './format.js';
 
 // Launch altitudes: Paragliding Earth takeoff altitude, cross-checked with USGS elevation.
+// Good launch wind: from S, SW or W (8-point compass, 157.5–292.5°) under 10 mph (16.1 km/h).
+// Keep in sync with SITES in alerts/Code.gs, which sends the email alerts.
 const DEFAULT_SITES = [{
   id: 'ed-levin', name: 'Ed Levin', lat: 37.476, lon: -121.861,
-  launchAlt: 693, faces: [180, 270], maxWind: 25,
-  note: 'Top launch, 693 m (~2,270 ft). Faces S–W, SW best.',
+  launchAlt: 693, faces: [157.5, 292.5], maxWind: 16.09,
+  note: 'Top launch, 693 m (~2,270 ft). Good launch wind: S, SW or W under 10 mph.',
 }, {
   id: 'mission-peak', name: 'Mission Peak', lat: 37.518, lon: -121.892,
-  launchAlt: 585, faces: [180, 270], maxWind: 25,
-  note: 'Launch 585 m (~1,920 ft). Faces S–W, SW best.',
+  launchAlt: 585, faces: [157.5, 292.5], maxWind: 16.09,
+  note: 'Launch 585 m (~1,920 ft). Good launch wind: S, SW or W under 10 mph.',
 }];
 // Fixed thermal model (see "How it's calculated" in index.html).
 const THERMAL = { k: 1.6, sink: 1.3, ziMethod: 'model', excess: 0 };
-const DEFAULT_SETTINGS = { alt: 'ft', wind: 'kmh' };
+const DEFAULT_SETTINGS = { alt: 'ft', wind: 'mph' };
 
 const store = {
   get(key, fallback) {
@@ -34,7 +37,7 @@ const state = {
   model: store.get('tol.model', 'hrrr'),
   settings: { ...DEFAULT_SETTINGS, ...store.get('tol.settings', {}) },
   customSites: store.get('tol.customSites', []),
-  siteId: store.get('tol.siteId', 'ed-levin'),
+  siteId: new URLSearchParams(location.search).get('site') || store.get('tol.siteId', 'ed-levin'),
   day: null,
   fc: null,
   mapStale: false,
@@ -167,12 +170,11 @@ function renderPoint() {
   $('#sun-info').innerHTML = sun?.rise
     ? `☀︎ Sunrise <b>${sun.rise.slice(11, 16)}</b> · Sunset <b>${sun.set.slice(11, 16)}</b>` : '';
   $('#point-meta').textContent =
-    `${m.label} ${m.res} · model point ${fc.lat.toFixed(3)}, ${fc.lon.toFixed(3)} · ground ${fmtAlt(fc.elevation, u.alt)} · ` +
-    `k ${opts.k}, sink ${opts.sink} m/s`;
+    `${m.label} ${m.res} model point ${fc.lat.toFixed(3)}, ${fc.lon.toFixed(3)} · ground ${fmtAlt(fc.elevation, u.alt)} · ` +
+    `thermal model k = ${opts.k}, glider sink ${opts.sink} m/s`;
   renderPointChart($('#chart'), $('#tooltip'), rows, ctx);
   $('#summary').textContent = summaryText(rows.filter(r => +r.hour.time.slice(11, 13) >= 7), ctx);
   $('#legend').innerHTML = legendHtml(u);
-  renderAirspaceInfo(s, fc.elevation, air);
 }
 
 // ---------- Airspace ----------
@@ -196,26 +198,6 @@ function overheadFloor(s, groundZ) {
   const ceilM = a => (a.ceiling.ref === 'MSL' ? 0 : groundZ) + a.ceiling.ft / 3.28084;
   const a = state.air.data.overhead.find(x => ceilM(x) > ref);
   return a ? { name: a.name, cls: a.cls, floorM: floorMsl(a, groundZ), ceilM: ceilM(a) } : null;
-}
-
-function renderAirspaceInfo(s, groundZ, air) {
-  const box = $('#airspace-info');
-  const u = units();
-  if (state.air?.siteId !== s.id) { box.textContent = 'Checking airspace…'; return; }
-  if (state.air.failed) { box.textContent = 'Airspace data unavailable right now.'; return; }
-  const from = a => (a.floor.ref === 'SFC' ? 'the surface' : fmtAlt(floorMsl(a, groundZ), u.alt));
-  const over = air
-    ? `Airspace overhead: <b>${air.name}</b> ${air.floorM <= groundZ + 1 ? 'from the surface' : `from ${fmtAlt(air.floorM, u.alt)}`} to ${fmtAlt(air.ceilM, u.alt)} MSL.`
-    : 'No Class B, C or D airspace overhead.';
-  // Nearby airspace that starts lower than what is overhead: what a downwind drift runs into.
-  const limitM = air?.floorM ?? Infinity;
-  const byName = new Map();
-  for (const a of state.air.data.nearby) {
-    if (floorMsl(a, groundZ) >= limitM) continue;
-    byName.set(a.name, [...(byName.get(a.name) ?? []), from(a)]);
-  }
-  const near = [...byName].map(([name, floors]) => `${name} from ${floors.join(' and ')}`).join('; ');
-  box.innerHTML = `${over}${near ? ` Lower within ${NEARBY_NM} NM: ${near}.` : ''} <span class="src">FAA data; check the current sectional.</span>`;
 }
 
 // Model run info: when the data shown was produced and when the next run should land.
@@ -281,6 +263,7 @@ let resizeTimer;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderPoint, 150); });
 
 initFeedback($('#feedback'));
+initAlerts($('#alerts'), DEFAULT_SITES);
 renderModels();
 renderSites();
 bindSettings();

@@ -55,6 +55,11 @@ body { margin: 0; background: var(--bg); height: 100vh; display: flex; flex-dire
 .hint.warn { color: var(--warn); }
 .sidebar footer { padding-top: 12px; }
 details summary { cursor: pointer; font-weight: 600; }
+.alert-form { display: grid; gap: 4px; margin-top: 8px; }
+.alert-form label:not(.check) { margin: 4px 0 0; font-weight: 600; }
+.alert-sites { display: flex; gap: 14px; flex-wrap: wrap; margin: 4px 0; }
+.alert-sites .check { margin: 0; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+.alert-form input:disabled, .alert-form button:disabled { opacity: .55; cursor: not-allowed; }
 .feedback { margin-bottom: 10px; color: var(--ink); font-size: 13px; }
 .feedback a { word-break: break-all; }
 .linkbtn { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
@@ -91,10 +96,10 @@ main { flex: 1; min-width: 0; position: relative; display: flex; flex-direction:
 }
 .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .summary { margin: 8px 0 10px; font-size: 14.5px; }
-.run-info {
-  display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-top: 8px; padding: 7px 12px;
-  background: var(--accent-soft); border-radius: 8px; font-size: 13px;
-}
+.details { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.details h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.details .meta { margin-top: 4px; }
+.run-info { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; }
 .run-info b { font-weight: 650; }
 .run-info .due { color: var(--warn); font-weight: 600; }
 .run-info .cadence { color: var(--muted); font-size: 12px; }
@@ -106,9 +111,6 @@ main { flex: 1; min-width: 0; position: relative; display: flex; flex-direction:
 .chart .air-label { fill: #b51f1f; font-size: 11.5px; font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 .ln.air { border-top: 2px solid #d62828; }
 .tt-warn { color: #ff8a80; }
-.airspace-info { margin: -4px 0 10px; font-size: 13px; color: var(--muted); }
-.airspace-info b { color: #b51f1f; }
-.airspace-info .src { font-size: 12px; opacity: .8; }
 .chart .sun-line { stroke: #e0a100; stroke-width: 1.5; stroke-dasharray: 4 3; }
 .chart .sun-label { fill: #9a6a00; font-size: 11px; font-weight: 600; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 .chart-wrap { position: relative; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }

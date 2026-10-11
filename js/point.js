@@ -184,7 +184,7 @@ function airMargin(tol, floorM, units) {
 export function summaryText(rows, ctx) {
   const { site, groundZ, units } = ctx;
   const usable = rows.filter(r => r.res.usable);
-  if (!usable.length) return `No usable lift this day with k = ${ctx.k} and sink = ${ctx.sink} m/s.`;
+  if (!usable.length) return 'No usable lift this day.';
   const best = usable.reduce((a, b) => (b.res.tol > a.res.tol ? b : a));
   const ref = site?.launchAlt ?? groundZ;
   const first = usable[0].hour.time.slice(11, 16), last = usable[usable.length - 1].hour.time.slice(11, 16);
