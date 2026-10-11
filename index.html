@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Top of Lift</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1 15 14H1Z' fill='%23f3a326'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true">▲</span> Top of Lift <span class="ver">v1</span></div>
+    <nav class="tabs" role="tablist" aria-label="View">
+      <button role="tab" data-view="point" aria-selected="true">Point forecast</button>
+      <button role="tab" data-view="map" aria-selected="false">Map</button>
+    </nav>
+    <div class="models" id="models" role="group" aria-label="Forecast model"></div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <section>
+        <h3>Site</h3>
+        <select id="site-select" aria-label="Site"></select>
+        <form id="custom-form" class="row">
+          <input id="custom-latlon" placeholder="lat, lon  e.g. 37.476, -121.861" aria-label="Custom point latitude, longitude">
+          <button class="btn" type="submit">Go</button>
+        </form>
+        <p class="hint" id="site-info"></p>
+        <p class="hint warn" id="model-note" hidden></p>
+      </section>
+
+      <section>
+        <h3>Units</h3>
+        <div class="row">
+          <select id="alt-unit" aria-label="Altitude unit"><option value="ft">ft</option><option value="m">m</option></select>
+          <select id="wind-unit" aria-label="Wind unit"><option value="kmh">km/h</option><option value="mph">mph</option><option value="kt">kt</option></select>
+        </div>
+      </section>
+
+      <section>
+        <details>
+          <summary>How it's calculated</summary>
+          <ol class="math">
+            <li><b>BL depth zᵢ</b> = the forecast model's boundary-layer height (HRRR, NAM or GFS).</li>
+            <li><b>Thermal strength w*</b> = (g/T · H/(ρ·c<sub>p</sub>) · zᵢ)<sup>⅓</sup>, where H = surface sensible heat flux.</li>
+            <li><b>Updraft</b> w(z) = k · w* · (z/zᵢ)<sup>⅓</sup> · (1 − 1.1 z/zᵢ), with <b>k = 1.6</b>. The updraft peaks at about 0.73 · w*, a quarter of the way up the BL.</li>
+            <li><b>Top of lift</b> = ground + highest z where w(z) ≥ <b>1.3 m/s</b>, the glider sink rate.</li>
+            <li><b>Launch wind</b> = model wind interpolated to the launch altitude from pressure levels. NAM has none, so it uses the 80 m wind.</li>
+          </ol>
+          <p class="hint">k and sink are fixed and not yet calibrated. Compare against your flights before trusting it.</p>
+        </details>
+      </section>
+
+      <footer class="hint">Weather data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (NOAA HRRR, NAM, GFS). Free tier is for non-commercial use.</footer>
+    </aside>
+
+    <main>
+      <div id="status" class="status" role="status" hidden></div>
+
+      <section id="view-point" class="view">
+        <div class="point-head">
+          <h2 id="point-title"></h2>
+          <div id="point-meta" class="meta"></div>
+        </div>
+        <div id="run-info" class="run-info" hidden></div>
+        <div class="day-row">
+          <div id="days" class="chips" role="group" aria-label="Day"></div>
+          <div id="sun-info" class="sun-info"></div>
+        </div>
+        <p id="summary" class="summary"></p>
+        <div class="chart-wrap">
+          <div id="chart"></div>
+          <div id="tooltip" class="tooltip" hidden></div>
+        </div>
+        <div id="legend" class="legend"></div>
+      </section>
+
+      <section id="view-map" class="view" hidden>
+        <div id="map"></div>
+        <div class="map-panel grid-panel">
+          <label for="grid-size">Grid</label>
+          <select id="grid-size">
+            <option value="10">10 × 10</option>
+            <option value="15" selected>15 × 15</option>
+            <option value="20">20 × 20</option>
+          </select>
+          <button class="btn" id="load-grid">Load this view</button>
+          <div id="grid-status" class="hint"></div>
+        </div>
+        <div id="map-legend" class="map-panel legend-panel"></div>
+        <div class="map-panel timebar">
+          <button class="btn icon" id="play" aria-label="Play">▶</button>
+          <div class="timebar-main">
+            <div class="timebar-top">
+              <div id="map-days" class="chips"></div>
+              <div id="time-label" class="time-label"></div>
+            </div>
+            <input type="range" id="time-slider" min="0" max="0" value="0" aria-label="Forecast time">
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
