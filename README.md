@@ -22,6 +22,10 @@ Then open <http://127.0.0.1:8765>.
   and **Mission Peak** (585 m launch), or any lat/lon. The chart shows the top-of-lift line (labelled),
   boundary-layer top, cumulus base, net-climb shading and wind arrows at each model level. Below it is
   a strip with the **wind at launch altitude**, colored by launch suitability. Hover a column for the numbers.
+  Above the chart: the model run the data came from and when the next run is due, plus sunrise/sunset
+  (also drawn on the chart). A **red line** marks the floor of the lowest Class B/C/D airspace over the site.
+  A note lists lower B/C/D airspace within 5 NM, since thermals drift. For Ed Levin and Mission Peak
+  that's the SFO Class B at 6,000 ft overhead, with a 4,000 ft shelf and San Jose Class C nearby.
 - **Map**: grid colored by top of lift (MSL, 1,000 ft bands) with 10 m wind arrows and speeds,
   plus a time slider, day chips and play button. Launch sites show a paraglider icon; click it to open
   that site's point forecast. Click a cell for its values or a point forecast there.
@@ -65,6 +69,13 @@ the parcel method (`ziMethod: 'parcel'`) for calibration experiments.
 - 3 km models smooth ridges, so slope heating and sea-breeze timing are only partly captured.
 - Cumulus base is a simple spread × 125 m estimate, and TOL is not capped at cloud base.
 - The map arrows show 10 m wind. Launch-altitude wind and wind aloft are in the point view.
+
+## Airspace (`fetchAirspace` in `js/data.js`)
+
+The app queries the FAA AIS open-data `Class_Airspace` layer (ArcGIS, CORS-enabled) twice: once at
+the site point, and once within 5 NM. It keeps classes B, C and D. The red line is the lowest floor
+overhead whose ceiling is above the launch. US only; this is no substitute for the current sectional
+chart or NOTAMs/TFRs.
 
 ## Feedback address
 

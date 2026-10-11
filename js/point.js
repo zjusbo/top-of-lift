@@ -10,7 +10,8 @@ const FIRST_HOUR = 7, LAST_HOUR = 20;
 
 /**
  * rows: [{hour, res}] for the chosen day (res = computeHour output)
- * ctx: {site, groundZ, units: {alt, wind}, k, sink, sun: {rise, set}}
+ * ctx: {site, groundZ, units: {alt, wind}, k, sink, sun: {rise, set},
+ *       air: {name, cls, floorM} = lowest Class B/C/D floor overhead, or null}
  * The bottom strip shows wind at launch altitude (site.launchAlt, or ground for custom points).
  */
 export function renderPointChart(root, tooltip, rows, ctx) {
@@ -28,7 +29,10 @@ export function renderPointChart(root, tooltip, rows, ctx) {
 
   // Vertical range (m MSL): a little below ground to comfortably above the highest BL top.
   const ftStep = units.alt === 'ft' ? 1000 / M_TO_FT : 250;
-  const top = Math.max(...rows.map(r => Math.max(r.res.ziTop, r.res.tol)), site?.launchAlt ?? 0, groundZ);
+  const air = ctx.air;
+  const airInRange = air && air.floorM <= groundZ + 3000;   // don't squash the chart for a far-off floor
+  const top = Math.max(...rows.map(r => Math.max(r.res.ziTop, r.res.tol)), site?.launchAlt ?? 0, groundZ,
+    airInRange ? air.floorM : 0);
   const yMin = Math.max(0, Math.floor((groundZ - ftStep) / ftStep) * ftStep);
   let yMax = Math.ceil((Math.max(top, groundZ + 1200) + 500) / ftStep) * ftStep;
   yMax = Math.min(yMax, 6000);
@@ -92,6 +96,13 @@ export function renderPointChart(root, tooltip, rows, ctx) {
     s.push(`<text x="${xAt(t) + (t === rise ? 4 : -4)}" y="${m.t + 12}" class="sun-label" text-anchor="${t === rise ? 'start' : 'end'}">${label}</text>`);
   }
 
+  // Airspace floor (red).
+  if (airInRange && air.floorM <= yMax) {
+    const label = air.floorM <= groundZ + 1 ? `${air.name} from the surface` : `${air.name} floor ${fmtAlt(air.floorM, units.alt)}`;
+    s.push(`<line x1="${m.l}" x2="${m.l + pw}" y1="${y(air.floorM)}" y2="${y(air.floorM)}" class="air-line"/>`);
+    s.push(`<text x="${m.l + pw - 6}" y="${y(air.floorM) - 6}" class="air-label" text-anchor="end">${label}</text>`);
+  }
+
   // TOL line with labels.
   const tolPts = rows.map(({ res }, i) => `${cx(i)},${y(res.tol)}`).join(' ');
   s.push(`<polyline points="${tolPts}" class="tol-line"/>`);
@@ -145,12 +156,13 @@ export function renderPointChart(root, tooltip, rows, ctx) {
   svg.addEventListener('mouseleave', () => { tooltip.hidden = true; });
 }
 
-function tooltipHtml({ hour, res }, { site, groundZ, units }) {
+function tooltipHtml({ hour, res }, { site, groundZ, units, air }) {
   const ref = site?.launchAlt ?? groundZ;
   const rel = res.tol - ref;
   const w = launchWind(hour, ref);
   const rows = [
     ['Top of lift', res.usable ? `<b>${fmtAlt(res.tol, units.alt)}</b> (${rel >= 0 ? '+' : ''}${fmtAlt(rel, units.alt)} vs ${site?.launchAlt ? 'launch' : 'ground'})` : '<b>No usable lift</b>'],
+    ...(air ? [['Airspace floor', `${fmtAlt(air.floorM, units.alt)}${res.usable ? airMargin(res.tol, air.floorM, units) : ''}`]] : []),
     ['BL top', fmtAlt(res.ziTop, units.alt)],
     ['w*', `${res.wstar.toFixed(2)} m/s`],
     ['Best net climb', fmtClimb(res.maxClimb)],
@@ -164,6 +176,11 @@ function tooltipHtml({ hour, res }, { site, groundZ, units }) {
     rows.map(([k, v]) => `<div class="tt-row"><span>${k}</span><span>${v}</span></div>`).join('');
 }
 
+function airMargin(tol, floorM, units) {
+  const gap = floorM - tol;
+  return gap > 0 ? ` (TOL ${fmtAlt(gap, units.alt)} below)` : ' <b class="tt-warn">(TOL reaches it)</b>';
+}
+
 export function summaryText(rows, ctx) {
   const { site, groundZ, units } = ctx;
   const usable = rows.filter(r => r.res.usable);
@@ -172,9 +189,11 @@ export function summaryText(rows, ctx) {
   const ref = site?.launchAlt ?? groundZ;
   const first = usable[0].hour.time.slice(11, 16), last = usable[usable.length - 1].hour.time.slice(11, 16);
   const climb = best.res.maxClimb < 0.1 ? 'climbs barely beat sink' : `net climb up to ${best.res.maxClimb.toFixed(1)} m/s`;
+  const busted = ctx.air && usable.some(r => r.res.tol >= ctx.air.floorM);
   return `Best ${best.hour.time.slice(11, 16)}: top of lift ${fmtAlt(best.res.tol, units.alt)} ` +
     `(${fmtAlt(best.res.tol - ref, units.alt)} over ${site?.launchAlt ? 'launch' : 'ground'}), ${climb}. ` +
-    (first === last ? `Usable lift only at ${first}.` : `Usable lift ${first}–${last}.`);
+    (first === last ? `Usable lift only at ${first}.` : `Usable lift ${first}–${last}.`) +
+    (busted ? ` Lift reaches the ${ctx.air.name} floor (${fmtAlt(ctx.air.floorM, units.alt)}): stay below it.` : '');
 }
 
 export function legendHtml(units) {
@@ -187,5 +206,5 @@ export function legendHtml(units) {
   }).join(' ');
   return `<div><b>Net climb</b> (m/s, updraft − sink): ${climb}</div>
     <div><b>Wind</b> (${windLabel(units.wind)}, arrows point downwind): ${wind}</div>
-    <div><span class="ln tol"></span>Top of usable lift <span class="ln bl"></span>Boundary-layer top <span class="ln cu"></span>Cumulus base <span class="ln launch"></span>Launch</div>`;
+    <div><span class="ln tol"></span>Top of usable lift <span class="ln bl"></span>Boundary-layer top <span class="ln cu"></span>Cumulus base <span class="ln launch"></span>Launch <span class="ln air"></span>Airspace floor (Class B/C/D)</div>`;
 }

@@ -194,3 +194,51 @@ export async function fetchGrid(points, modelKey, withProfile, { onProgress, onW
   }
   return out;
 }
+
+// ---------- Airspace (FAA AIS open data, Class_Airspace layer) ----------
+
+const AIRSPACE_API = 'https://services6.arcgis.com/ssFJjBXIUyZDrSYZ/arcgis/rest/services/Class_Airspace/FeatureServer/0/query';
+export const NEARBY_NM = 5;   // thermals drift; also report B/C/D this close to the site
+
+const titleCase = s => (s ?? '').toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()).replace(/\bClass ([a-e])\b/i, (_, c) => `Class ${c.toUpperCase()}`);
+const limit = (val, uom, code) => ({ ft: uom === 'FL' ? val * 100 : val, ref: code === 'SFC' ? 'SFC' : code === 'AGL' ? 'AGL' : 'MSL' });
+
+/** Floor of an airspace in m MSL at a point whose ground is groundZ (m). */
+export function floorMsl(a, groundZ) {
+  if (a.floor.ref === 'SFC') return groundZ;
+  return (a.floor.ref === 'AGL' ? groundZ : 0) + a.floor.ft / 3.28084;
+}
+
+/**
+ * Class B, C and D airspace over a point (overhead) and within NEARBY_NM, each sorted by floor:
+ * [{name, cls, floor: {ft, ref}, ceiling: {ft, ref}}]. US only; elsewhere both lists are empty.
+ */
+export function fetchAirspace(lat, lon) {
+  const key = `air|${lat.toFixed(4)}|${lon.toFixed(4)}`;
+  const hit = cached(key);
+  if (hit) return hit;
+  const query = async extra => {
+    const q = new URLSearchParams({
+      geometry: `${lon},${lat}`, geometryType: 'esriGeometryPoint', inSR: '4326',
+      spatialRel: 'esriSpatialRelIntersects', where: "CLASS IN ('B','C','D')",
+      outFields: 'NAME,CLASS,LOWER_VAL,LOWER_UOM,LOWER_CODE,UPPER_VAL,UPPER_UOM,UPPER_CODE',
+      returnGeometry: 'false', f: 'json', ...extra,
+    });
+    const res = await fetch(`${AIRSPACE_API}?${q}`);
+    const body = await res.json();
+    if (!res.ok || body.error) throw new Error(body.error?.message || `airspace HTTP ${res.status}`);
+    const seen = new Set();
+    return body.features.map(({ attributes: a }) => ({
+      name: titleCase(a.NAME), cls: a.CLASS,
+      floor: limit(a.LOWER_VAL, a.LOWER_UOM, a.LOWER_CODE),
+      ceiling: limit(a.UPPER_VAL, a.UPPER_UOM, a.UPPER_CODE),
+    })).filter(a => {
+      const k = `${a.name}|${a.floor.ref}|${a.floor.ft}`;
+      return !seen.has(k) && seen.add(k);
+    }).sort((x, y) => (x.floor.ref === 'SFC' ? 0 : x.floor.ft) - (y.floor.ref === 'SFC' ? 0 : y.floor.ft));
+  };
+  const p = Promise.all([query({}), query({ distance: String(NEARBY_NM), units: 'esriSRUnit_NauticalMile' })])
+    .then(([overhead, nearby]) => ({ overhead, nearby }));
+  p.catch(() => cache.delete(key));
+  return remember(key, p);
+}

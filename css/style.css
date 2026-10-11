@@ -102,6 +102,13 @@ main { flex: 1; min-width: 0; position: relative; display: flex; flex-direction:
 .sun-info { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .sun-info b { color: var(--ink); font-weight: 600; }
 .chart .night { fill: #14213d; opacity: .07; }
+.chart .air-line { stroke: #d62828; stroke-width: 2; }
+.chart .air-label { fill: #b51f1f; font-size: 11.5px; font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.ln.air { border-top: 2px solid #d62828; }
+.tt-warn { color: #ff8a80; }
+.airspace-info { margin: -4px 0 10px; font-size: 13px; color: var(--muted); }
+.airspace-info b { color: #b51f1f; }
+.airspace-info .src { font-size: 12px; opacity: .8; }
 .chart .sun-line { stroke: #e0a100; stroke-width: 1.5; stroke-dasharray: 4 3; }
 .chart .sun-label { fill: #9a6a00; font-size: 11px; font-weight: 600; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 .chart-wrap { position: relative; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }

@@ -1,5 +1,5 @@
 // App state and wiring between the sidebar, the point view and the map view.
-import { MODELS, fetchPoint, fetchRunInfo } from './data.js';
+import { MODELS, fetchPoint, fetchRunInfo, fetchAirspace, floorMsl, NEARBY_NM } from './data.js';
 import { computeHour } from './physics.js';
 import { renderPointChart, summaryText, legendHtml } from './point.js';
 import { MapView } from './map.js';
@@ -129,6 +129,7 @@ async function loadPoint() {
   $('#point-meta').textContent = 'Loading forecast…';
   state.fc = null;
   loadRunInfo();
+  loadAirspace(s);
   try {
     const fc = await fetchPoint(s.lat, s.lon, state.model);
     if (site() !== s) return;  // site changed while loading
@@ -161,7 +162,8 @@ function renderPoint() {
   const rows = fc.hours.filter(h => h.time.startsWith(state.day))
     .map(hour => ({ hour, res: computeHour(hour, fc.elevation, opts) }));
   const sun = fc.sun[state.day];
-  const ctx = { site: s, groundZ: fc.elevation, units: u, k: opts.k, sink: opts.sink, sun };
+  const air = overheadFloor(s, fc.elevation);
+  const ctx = { site: s, groundZ: fc.elevation, units: u, k: opts.k, sink: opts.sink, sun, air };
   $('#sun-info').innerHTML = sun?.rise
     ? `☀︎ Sunrise <b>${sun.rise.slice(11, 16)}</b> · Sunset <b>${sun.set.slice(11, 16)}</b>` : '';
   $('#point-meta').textContent =
@@ -170,6 +172,50 @@ function renderPoint() {
   renderPointChart($('#chart'), $('#tooltip'), rows, ctx);
   $('#summary').textContent = summaryText(rows.filter(r => +r.hour.time.slice(11, 13) >= 7), ctx);
   $('#legend').innerHTML = legendHtml(u);
+  renderAirspaceInfo(s, fc.elevation, air);
+}
+
+// ---------- Airspace ----------
+
+async function loadAirspace(s) {
+  state.air = null;
+  try {
+    const data = await fetchAirspace(s.lat, s.lon);
+    if (site() !== s) return;
+    state.air = { siteId: s.id, data };
+  } catch {
+    state.air = { siteId: s.id, failed: true };
+  }
+  renderPoint();
+}
+
+/** Lowest Class B/C/D floor over the site whose ceiling is above the launch, as {name, cls, floorM}. */
+function overheadFloor(s, groundZ) {
+  if (state.air?.siteId !== s.id || !state.air.data) return null;
+  const ref = s.launchAlt ?? groundZ;
+  const ceilM = a => (a.ceiling.ref === 'MSL' ? 0 : groundZ) + a.ceiling.ft / 3.28084;
+  const a = state.air.data.overhead.find(x => ceilM(x) > ref);
+  return a ? { name: a.name, cls: a.cls, floorM: floorMsl(a, groundZ), ceilM: ceilM(a) } : null;
+}
+
+function renderAirspaceInfo(s, groundZ, air) {
+  const box = $('#airspace-info');
+  const u = units();
+  if (state.air?.siteId !== s.id) { box.textContent = 'Checking airspace…'; return; }
+  if (state.air.failed) { box.textContent = 'Airspace data unavailable right now.'; return; }
+  const from = a => (a.floor.ref === 'SFC' ? 'the surface' : fmtAlt(floorMsl(a, groundZ), u.alt));
+  const over = air
+    ? `Airspace overhead: <b>${air.name}</b> ${air.floorM <= groundZ + 1 ? 'from the surface' : `from ${fmtAlt(air.floorM, u.alt)}`} to ${fmtAlt(air.ceilM, u.alt)} MSL.`
+    : 'No Class B, C or D airspace overhead.';
+  // Nearby airspace that starts lower than what is overhead: what a downwind drift runs into.
+  const limitM = air?.floorM ?? Infinity;
+  const byName = new Map();
+  for (const a of state.air.data.nearby) {
+    if (floorMsl(a, groundZ) >= limitM) continue;
+    byName.set(a.name, [...(byName.get(a.name) ?? []), from(a)]);
+  }
+  const near = [...byName].map(([name, floors]) => `${name} from ${floors.join(' and ')}`).join('; ');
+  box.innerHTML = `${over}${near ? ` Lower within ${NEARBY_NM} NM: ${near}.` : ''} <span class="src">FAA data; check the current sectional.</span>`;
 }
 
 // Model run info: when the data shown was produced and when the next run should land.
