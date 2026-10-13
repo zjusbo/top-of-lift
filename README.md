@@ -81,7 +81,9 @@ chart or NOTAMs/TFRs.
 
 The sidebar's "Email alerts" form signs people up for flyable-day emails. A site counts as flyable
 when an HRRR hour in daylight has top of lift at least 500 ft above launch and launch wind from S,
-SW or W under 10 mph. The backend is a Google Apps Script in [`alerts/`](alerts/README.md), which has setup steps.
+SW or W under 10 mph. If a later forecast drops every flyable hour before the window ends, the
+people alerted get a "Cancelled" email, and one "Back on" email if it recovers. The backend is a
+Google Apps Script in [`alerts/`](alerts/README.md), which has setup steps.
 Until `ALERTS_ENDPOINT` in `js/config.js` is set, the form says alerts aren't switched on yet.
 
 ## Feedback address

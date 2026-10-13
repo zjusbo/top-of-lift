@@ -16,6 +16,7 @@ function makeSheet(name) {
     appendRow: r => rows.push(r.map(v => (typeof v === 'string' && v.startsWith("'") ? v.slice(1) : v))),
     setFrozenRows() {},
     getDataRange: () => ({ getValues: () => rows.map(r => [...r]) }),
+    getLastRow: () => rows.length,
     getRange: (row, col, nr = 1, nc = 1) => ({
       setValues: vals => vals.forEach((v, i) => v.forEach((x, j) => { rows[row - 1 + i][col - 1 + j] = x; })),
       setValue: v => { rows[row - 1][col - 1] = v; },
@@ -83,7 +84,8 @@ function synth(hours) {   // hours: [{time, shf, hpbl, spd, dir}]
   }
   return { elevation: 687, hourly: h, daily: { time: ['2026-10-12'], sunrise: ['2026-10-12T07:12'], sunset: ['2026-10-12T18:35'] } };
 }
-const flyableDays = G('flyableDays');
+const evaluateHours = G('evaluateHours'), flyableDaysOf = G('flyableDays');
+const flyableDays = (site, om, now) => flyableDaysOf(site, evaluateHours(site, om, now));
 const ed = SITES['ed-levin'];
 const good = { shf: 350, hpbl: 2000, spd: 10, dir: 240 };                     // SW 6 mph, strong lift
 const om = synth([
@@ -148,20 +150,54 @@ assert.equal(subs[1][2], 'pending', 'opening the link alone does not confirm');
 G('act')('confirm', token);
 assert.equal(subs[1][2], 'active');
 
-omResponse = om;                                                   // flyable synthetic day
-fakeNow = Date.parse('2026-10-12T16:30:00Z');                      // 09:30 PDT, inside send hours
-G('checkAndAlert')();
-const alerts = mail.slice(1);
-assert.equal(alerts.length, 2, 'one alert per subscribed site');
-assert.ok(alerts[0].subject.startsWith('Ed Levin looks flyable') && alerts[0].body.includes('Unsubscribe: '));
-assert.ok(alerts[0].body.includes('?site=ed-levin'), 'deep link to the site');
-G('checkAndAlert')();
-assert.equal(mail.length, 3, 'same site and day is not alerted twice');
-fakeNow = Date.parse('2026-10-12T05:00:00Z');                      // 22:00 PDT the night before: quiet hours
+// Same day, but the wind has gone over the back (NE) every hour.
+const omBad = synth(['06:00', '12:00', '13:00', '14:00', '15:00', '15:30', '16:00', '19:00']
+  .map(t => ({ time: `2026-10-12T${t}`, ...good, dir: 60 })));
+const run = (forecast, utc) => { omResponse = forecast; fakeNow = Date.parse(utc); const n = mail.length; G('checkAndAlert')(); return mail.slice(n); };
+const AM = '2026-10-12T16:30:00Z';                                 // 09:30 PDT, inside send hours
+const status = () => plain(sheets.alerts.rows.slice(1).map(r => `${r[0]}:${r[2]}:${r[3]}`));
+
+let got = run(om, AM);
+assert.equal(got.length, 2, 'one alert per subscribed site');
+assert.ok(got[0].subject.startsWith('Ed Levin looks flyable') && got[0].body.includes('Unsubscribe: '));
+assert.ok(got[0].body.includes('?site=ed-levin'), 'deep link to the site');
+assert.equal(run(om, AM).length, 0, 'still flyable: no second alert');
+
+got = run(omBad, AM);
+assert.equal(got.length, 2, 'cancellation per site when it turns unflyable');
+assert.match(got[0].subject, /^Cancelled: Ed Levin no longer looks flyable Mon Oct 12$/);
+assert.ok(got[0].body.includes('Best remaining hour now:') && got[0].body.includes('wind NE'), 'says why');
+assert.ok(got[0].body.includes('one more email'), 'mentions a possible back-on email');
+assert.deepEqual(status(), ['ed-levin:cancelled:2', 'mission-peak:cancelled:2']);
+assert.equal(run(omBad, AM).length, 0, 'no repeated cancellation');
+
+got = run(om, AM);
+assert.equal(got.length, 2, 'back on when flyable again');
+assert.ok(got[0].subject.startsWith('Back on: Ed Levin looks flyable'));
+assert.equal(run(omBad, AM).length, 0, 'capped at 3 emails per site and day');
+
+// A day whose flyable window has already passed is not "cancelled".
 sheets.alerts.rows.splice(1);
-G('checkAndAlert')();
-assert.equal(mail.length, 3, 'no alerts outside send hours');
+assert.equal(run(om, AM).length, 2);
+assert.equal(run(omBad, '2026-10-13T00:30:00Z').length, 0, '17:30 PDT: window (until 16:00) is over, no cancellation');
+
+// Unsubscribed people get no cancellation.
 G('act')('unsubscribe', token);
 assert.equal(subs[1][2], 'unsubscribed');
+sheets.alerts.rows.splice(1);
+G('act')('confirm', token);
+assert.equal(run(om, AM).length, 2);
+G('act')('unsubscribe', token);
+assert.equal(run(omBad, AM).length, 0, 'unsubscribed: no cancellation');
+
+// Quiet hours.
+G('act')('confirm', token);
+sheets.alerts.rows.splice(1);
+assert.equal(run(om, '2026-10-12T05:00:00Z').length, 0, 'no alerts at 22:00');
+
+// A sheet made by the previous version (old header row, no data) is upgraded in place.
+sheets.alerts.rows.splice(0, sheets.alerts.rows.length, ['site', 'date', 'sentAt', 'recipients', 'summary']);
+G("sheet_('alerts', ALERT_HEADERS)");
+assert.deepEqual(plain(sheets.alerts.rows[0]), plain(G('ALERT_HEADERS')), 'header row upgraded');
 
 console.log('alerts tests passed');
