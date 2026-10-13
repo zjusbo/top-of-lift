@@ -6,9 +6,9 @@ in a free Google Apps Script attached to a Google Sheet:
 - **Subscribers** live in the Sheet (`subscribers` tab), private to your Google account.
 - **Sign-up is double opt-in.** The page posts the address, and the script emails a confirmation
   link. Nothing else is sent until that link's button is pressed.
-- **Every hour,** the script fetches the HRRR forecast for each site that has subscribers. If an hour
-  has usable lift above launch and launch wind from S, SW or W under 10 mph, it emails those
-  subscribers. It sends once per site per day, only between 06:00 and 21:00 local time, and every
+- **Every hour,** the script fetches the HRRR forecast for each site that has subscribers. If a daylight
+  hour has top of lift at least 500 ft above launch and launch wind from S, SW or W under 10 mph,
+  it emails those subscribers. It sends once per site per day, only between 06:00 and 21:00 local time, and every
   email has an unsubscribe link. Sent alerts are logged in the `alerts` tab.
 - **Mail goes out from your Gmail** via `MailApp`, which allows 100 recipients a day on a free
   account.

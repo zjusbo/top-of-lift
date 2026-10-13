@@ -6,7 +6,8 @@
  * - doGet: confirm / unsubscribe pages. Each one needs a button press, so link scanners that
  *   prefetch email links don't confirm or unsubscribe people.
  * - checkAndAlert: hourly trigger. Fetches the HRRR forecast for each site with subscribers and
- *   emails them once per site and day when an hour looks flyable.
+ *   emails them once per site and day when an hour looks flyable (top of lift 500+ ft above launch,
+ *   launch wind S/SW/W under 10 mph).
  *
  * Setup steps are in alerts/README.md.
  */
@@ -16,6 +17,7 @@ const CONFIG = {
   senderName: 'Top of Lift alerts',
   k: 1.6,                       // keep in sync with THERMAL in js/app.js
   sinkMs: 1.3,
+  minGainFt: 500,               // top of lift must be at least this far above launch
   sendHours: [6, 21],           // only send alerts between these local hours
   maxConfirmationsPerHour: 20,  // abuse guard for the sign-up endpoint
 };
@@ -218,8 +220,8 @@ function sendAlert_(sub, id, site, day) {
 
 /**
  * Days with at least one flyable hour from `nowLocal` ("YYYY-MM-DDTHH:00", site time) onward:
- * daylight, usable lift reaching above launch, launch wind from an allowed direction and under the
- * wind limit. Returns [{date, hours: [{time, tolFt, gainFt, dir, mph}], summary}].
+ * daylight, top of lift at least CONFIG.minGainFt above launch, launch wind from an allowed
+ * direction and under the wind limit. Returns [{date, hours: [{time, tolFt, gainFt, dir, mph}], summary}].
  */
 function flyableDays(site, om, nowLocal) {
   const h = om.hourly, groundZ = om.elevation;
@@ -235,7 +237,7 @@ function flyableDays(site, om, nowLocal) {
     const ws = wstar_(h.sensible_heat_flux[i], zi, h.temperature_2m[i], h.surface_pressure[i]);
     const r = critRatio_(ws, CONFIG.k, CONFIG.sinkMs);
     const tol = groundZ + r * zi;
-    if (!(r > 0) || tol <= site.launchAlt) return;
+    if (!(r > 0) || (tol - site.launchAlt) * 3.28084 < CONFIG.minGainFt) return;
 
     const wind = launchWind_(h, i, site.launchAlt);
     if (!wind) return;

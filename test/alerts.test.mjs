@@ -92,12 +92,14 @@ const om = synth([
   { time: '2026-10-12T13:00', ...good, dir: 60 },                                // NE: over the back
   { time: '2026-10-12T14:00', ...good, spd: 18 },                                // 11 mph: too windy
   { time: '2026-10-12T15:00', ...good, shf: 40, hpbl: 300 },                     // weak: no lift above launch
+  { time: '2026-10-12T15:30', ...good, shf: 160, hpbl: 330 },                    // lift, but under 500 ft over launch
   { time: '2026-10-12T16:00', ...good, dir: 185 },                               // S: flyable
   { time: '2026-10-12T19:00', ...good },                                         // after sunset
 ]);
 const days = flyableDays(ed, om, '2026-10-12T00:00');
 assert.equal(days.length, 1);
 assert.deepEqual(plain(days[0].hours.map(h => h.time)), ['12:00', '16:00'], 'only the flyable hours');
+assert.ok(days[0].hours.every(h => h.gainFt >= 500), 'every alert hour is 500+ ft over launch');
 assert.match(days[0].summary, /^Ed Levin looks flyable Mon Oct 12, 12:00–16:00 \(top of lift up to [\d,]+ ft\)$/);
 assert.deepEqual(plain(flyableDays(ed, om, '2026-10-12T13:00')[0].hours.map(h => h.time)), ['16:00'], 'past hours skipped');
 
