@@ -129,6 +129,8 @@ main { flex: 1; min-width: 0; position: relative; display: flex; flex-direction:
 .chart .cloud.faint, .lg-cloud.faint, .chart .cloud-label.faint { opacity: .45; }
 .chart .cloud-label { fill: #2f6699; font-size: 10.5px; font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 .chart .strip-text.gust { font-weight: 700; }
+.chart .wx-text { fill: var(--muted); font-size: 10.5px; font-weight: 600; }
+.chart .wx-text.wet { fill: #2f7fd1; }
 .lg-cloud { width: 20px; height: 13px; vertical-align: -2px; margin: 0 2px 0 0; }
 .legend .lg-cloud.faint { margin-left: 12px; }
 .chart .tol-line { fill: none; stroke: var(--tol); stroke-width: 2.5; }

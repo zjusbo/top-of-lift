@@ -4,11 +4,28 @@ import {
   launchRating, hourOf, CLIMB_STEPS, WIND_STEPS, windLabel, M_TO_FT,
 } from './format.js';
 import { launchWind } from './physics.js';
+import { classify, detail, iconSvg, fmtTemp, tempVal } from './weather.js';
 
 const CLOUD_SVG_INNER = '<path d="M6.5 15h11a4.5 4.5 0 0 0 .9-8.9 6 6 0 0 0-11.5-1.4A4.6 4.6 0 0 0 6.5 15z"/>';
 const CLOUD_SVG = `<svg width="24" height="16" viewBox="0 0 24 16" aria-hidden="true">${CLOUD_SVG_INNER}</svg>`;
 // Gust text color, km/h: calm, noticeable, strong for a paraglider, too strong.
 const gustColor = kmh => (kmh < 16 ? '#2a7f62' : kmh < 24 ? '#9a6a00' : kmh < 32 ? '#d9480f' : '#c92a2a');
+// Temperature text color: cold blue, mild ink, hot red (°C thresholds).
+const tempColor = c => (c == null ? 'var(--ink)' : c < 5 ? '#2f6db3' : c >= 32 ? '#c92a2a' : c >= 27 ? '#d9480f' : 'var(--ink)');
+// Night = before sunrise or after sunset (sun = {rise, set} as local "YYYY-MM-DDTHH:MM").
+const hourFrac = iso => (iso ? +iso.slice(11, 13) + +iso.slice(14, 16) / 60 : null);
+const isNight = (time, sun) => {
+  const t = hourOf(time), rise = hourFrac(sun?.rise), set = hourFrac(sun?.set);
+  return (rise != null && t < rise) || (set != null && t > set);
+};
+function weatherText({ wx, time }, sun) {
+  const sky = classify(wx, isNight(time, sun));
+  const parts = [sky.label];
+  if (wx.cloud != null) parts.push(`cloud cover ${Math.round(wx.cloud)}%`);
+  if (wx.pop != null) parts.push(`${Math.round(wx.pop)}% chance of precipitation`);
+  if (wx.precip > 0) parts.push(`${wx.precip.toFixed(1)} mm`);
+  return parts.join(' · ');
+}
 const RATING_COLOR = { good: '#d8f3dc', light: '#e8f1e9', cross: '#ffe8a3', bad: '#ffd6d6' };
 const FIRST_HOUR = 7, LAST_HOUR = 20;
 
@@ -26,8 +43,9 @@ export function renderPointChart(root, tooltip, rows, ctx) {
     return;
   }
   const { site, groundZ, units } = ctx;
-  const W = Math.max(root.clientWidth || 900, 600), H = 594;
-  const m = { l: 64, r: 18, t: 22, b: 126 };   // bottom: hour labels, launch wind, gust, caption
+  const W = Math.max(root.clientWidth || 900, 600), H = 656;
+  // top: sky + temperature rows; bottom: hour labels, launch wind, gust, caption
+  const m = { l: 64, r: 18, t: 84, b: 126 };
   const pw = W - m.l - m.r, ph = H - m.t - m.b;
   const n = rows.length, cw = pw / n;
 
@@ -98,7 +116,7 @@ export function renderPointChart(root, tooltip, rows, ctx) {
   for (const [t, label] of [[rise, `Sunrise ${ctx.sun?.rise?.slice(11, 16)}`], [set, `Sunset ${ctx.sun?.set?.slice(11, 16)}`]]) {
     if (t == null || xAt(t) <= m.l || xAt(t) >= m.l + pw) continue;
     s.push(`<line x1="${xAt(t)}" x2="${xAt(t)}" y1="${m.t}" y2="${m.t + ph}" class="sun-line"/>`);
-    s.push(`<text x="${xAt(t) + (t === rise ? 4 : -4)}" y="${m.t + 12}" class="sun-label" text-anchor="${t === rise ? 'start' : 'end'}">${label}</text>`);
+    s.push(`<text x="${xAt(t) + (t === rise ? 4 : -4)}" y="${m.t + 46}" class="sun-label" text-anchor="${t === rise ? 'start' : 'end'}">${label}</text>`);   // below pinned clouds
   }
 
   // Airspace floor (red).
@@ -136,6 +154,19 @@ export function renderPointChart(root, tooltip, rows, ctx) {
     }
   });
 
+  // Sky and temperature rows above the chart.
+  s.push(`<text x="${m.l - 8}" y="${26}" class="axis" text-anchor="end">Sky</text>`);
+  s.push(`<text x="${m.l - 8}" y="${68}" class="axis" text-anchor="end">Temp</text>`);
+  rows.forEach(({ hour }, i) => {
+    const night = isNight(hour.time, ctx.sun);
+    const sky = classify(hour.wx, night);
+    const d = detail(hour.wx, sky, units.wind === 'mph');
+    s.push(`<g transform="translate(${cx(i) - 11} 2)"><title>${sky.label}</title>${iconSvg(sky.kind, night, 22)}</g>`);
+    if (d.text) s.push(`<text x="${cx(i)}" y="38" class="wx-text${d.wet ? ' wet' : ''}" text-anchor="middle">${d.text}</text>`);
+    s.push(`<rect x="${m.l + i * cw + 2}" y="50" width="${cw - 4}" height="26" rx="6" fill="var(--strip)"/>`);
+    s.push(`<text x="${cx(i)}" y="68" class="strip-text" text-anchor="middle" fill="${tempColor(hour.t2)}">${hour.t2 == null ? '–' : Math.round(tempVal(hour.t2, units.temp))}°</text>`);
+  });
+
   // Hour labels, the launch-altitude wind strip, and surface gusts.
   const stripY = m.t + ph + 26, gustY = stripY + 58;
   s.push(`<text x="${m.l - 8}" y="${gustY + 17}" class="axis" text-anchor="end">Gust</text>`);
@@ -162,7 +193,7 @@ export function renderPointChart(root, tooltip, rows, ctx) {
 
   // Hover targets.
   rows.forEach((_, i) => {
-    s.push(`<rect x="${m.l + i * cw}" y="${m.t}" width="${cw}" height="${gustY + 26 - m.t}" class="hover" data-i="${i}"/>`);
+    s.push(`<rect x="${m.l + i * cw}" y="0" width="${cw}" height="${gustY + 26}" class="hover" data-i="${i}"/>`);
   });
 
   root.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Hourly top of lift and wind chart">${s.join('')}</svg>`;
@@ -180,7 +211,7 @@ export function renderPointChart(root, tooltip, rows, ctx) {
   svg.addEventListener('mouseleave', () => { tooltip.hidden = true; });
 }
 
-function tooltipHtml({ hour, res }, { site, groundZ, units, air }) {
+function tooltipHtml({ hour, res }, { site, groundZ, units, air, sun }) {
   const ref = site?.launchAlt ?? groundZ;
   const rel = res.tol - ref;
   const w = launchWind(hour, ref);
@@ -196,7 +227,8 @@ function tooltipHtml({ hour, res }, { site, groundZ, units, air }) {
     [w?.source === '80m' ? 'Wind 80 m' : 'Wind at launch', w ? `${compass(w.dir)} ${fmtWind(w.spd, units.wind)}` : '–'],
     ['Gust (surface)', fmtWind(hour.gust, units.wind)],
     ['Heat flux', hour.shf != null ? `${Math.round(hour.shf)} W/m²` : '–'],
-    ['Temp 2 m', hour.t2 != null ? `${hour.t2.toFixed(1)} °C` : '–'],
+    ['Temperature', fmtTemp(hour.t2, units.temp)],
+    ['Weather', weatherText(hour, sun)],
   ];
   return `<div class="tt-title">${hour.time.slice(11, 16)}</div>` +
     rows.map(([k, v]) => `<div class="tt-row"><span>${k}</span><span>${v}</span></div>`).join('');

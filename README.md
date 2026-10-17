@@ -18,7 +18,9 @@ Then open <http://127.0.0.1:8765>.
 
 ## Views
 
-- **Point forecast**: hourly time-height chart for one site and day. Sites are **Ed Levin** (693 m launch)
+- **Point forecast**: hourly time-height chart for one site and day. Across the top: **sky** (sunny, partly
+  or mostly cloudy, overcast, fog, drizzle, rain, snow, thunder) with cloud cover %, or chance of
+  precipitation % in blue on wet hours, and **temperature** (°F or °C). Sites are **Ed Levin** (693 m launch)
   and **Mission Peak** (585 m launch), or any lat/lon. The chart shows the top-of-lift line (labelled),
   boundary-layer top (dashed, labelled "BL top"), net-climb shading and wind arrows at each model level.
   **Cloud icons** mark cloud base: solid where cumulus can form, faded where thermals stay below it, and
@@ -101,4 +103,5 @@ harvesters, but it is not a full CAPTCHA.
 ```bash
 node test/physics.test.mjs
 node test/alerts.test.mjs
+node test/weather.test.mjs
 ```

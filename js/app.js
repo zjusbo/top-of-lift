@@ -21,7 +21,7 @@ const DEFAULT_SITES = [{
 }];
 // Fixed thermal model (see "How it's calculated" in index.html).
 const THERMAL = { k: 1.6, sink: 1.3, ziMethod: 'model', excess: 0 };
-const DEFAULT_SETTINGS = { alt: 'ft', wind: 'mph' };
+const DEFAULT_SETTINGS = { alt: 'ft', wind: 'mph', temp: 'F' };
 
 const store = {
   get(key, fallback) {
@@ -47,7 +47,7 @@ if (!MODELS[state.model]) state.model = 'hrrr';
 const $ = s => document.querySelector(s);
 const sites = () => [...DEFAULT_SITES, ...state.customSites];
 const site = () => sites().find(s => s.id === state.siteId) ?? DEFAULT_SITES[0];
-const units = () => ({ alt: state.settings.alt, wind: state.settings.wind });
+const units = () => ({ alt: state.settings.alt, wind: state.settings.wind, temp: state.settings.temp });
 
 const effectiveOpts = () => THERMAL;
 
@@ -105,7 +105,7 @@ function selectSite(s) {
 
 function bindSettings() {
   const s = state.settings;
-  $('#alt-unit').value = s.alt; $('#wind-unit').value = s.wind;
+  $('#alt-unit').value = s.alt; $('#wind-unit').value = s.wind; $('#temp-unit').value = s.temp;
 
   const changed = () => {
     store.set('tol.settings', state.settings);
@@ -114,6 +114,7 @@ function bindSettings() {
   };
   $('#alt-unit').addEventListener('change', e => { s.alt = e.target.value; changed(); });
   $('#wind-unit').addEventListener('change', e => { s.wind = e.target.value; changed(); });
+  $('#temp-unit').addEventListener('change', e => { s.temp = e.target.value; changed(); });
 
   $('#site-select').addEventListener('change', e => selectSite(sites().find(x => x.id === e.target.value)));
   $('#custom-form').addEventListener('submit', e => {
