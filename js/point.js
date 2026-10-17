@@ -5,6 +5,10 @@ import {
 } from './format.js';
 import { launchWind } from './physics.js';
 
+const CLOUD_SVG_INNER = '<path d="M6.5 15h11a4.5 4.5 0 0 0 .9-8.9 6 6 0 0 0-11.5-1.4A4.6 4.6 0 0 0 6.5 15z"/>';
+const CLOUD_SVG = `<svg width="24" height="16" viewBox="0 0 24 16" aria-hidden="true">${CLOUD_SVG_INNER}</svg>`;
+// Gust text color, km/h: calm, noticeable, strong for a paraglider, too strong.
+const gustColor = kmh => (kmh < 16 ? '#2a7f62' : kmh < 24 ? '#9a6a00' : kmh < 32 ? '#d9480f' : '#c92a2a');
 const RATING_COLOR = { good: '#d8f3dc', light: '#e8f1e9', cross: '#ffe8a3', bad: '#ffd6d6' };
 const FIRST_HOUR = 7, LAST_HOUR = 20;
 
@@ -22,8 +26,8 @@ export function renderPointChart(root, tooltip, rows, ctx) {
     return;
   }
   const { site, groundZ, units } = ctx;
-  const W = Math.max(root.clientWidth || 900, 600), H = 560;
-  const m = { l: 64, r: 18, t: 22, b: 92 };
+  const W = Math.max(root.clientWidth || 900, 600), H = 594;
+  const m = { l: 64, r: 18, t: 22, b: 126 };   // bottom: hour labels, launch wind, gust, caption
   const pw = W - m.l - m.r, ph = H - m.t - m.b;
   const n = rows.length, cw = pw / n;
 
@@ -75,12 +79,13 @@ export function renderPointChart(root, tooltip, rows, ctx) {
     s.push(`<text x="${m.l + 6}" y="${y(site.launchAlt) - 5}" class="launch-label">Launch ${fmtAlt(site.launchAlt, units.alt)}</text>`);
   }
 
-  // BL top (dashed) and cumulus base (dotted).
+  // BL top (dashed): top of the mixed layer, where thermals stop. Labelled at its highest point.
   const blPts = rows.map(({ res }, i) => `${cx(i)},${y(Math.max(res.ziTop, groundZ))}`).join(' ');
   s.push(`<polyline points="${blPts}" class="bl-line"/>`);
-  rows.forEach(({ res }, i) => {
-    if (res.cuBase != null) s.push(`<line x1="${cx(i) - cw / 2 + 3}" x2="${cx(i) + cw / 2 - 3}" y1="${y(res.cuBase)}" y2="${y(res.cuBase)}" class="cu-line"/>`);
-  });
+  const iTop = rows.reduce((b, r, i) => (r.res.ziTop > rows[b].res.ziTop ? i : b), 0);
+  if (rows[iTop].res.ziTop > groundZ + dz * 4) {
+    s.push(`<text x="${cx(iTop)}" y="${y(rows[iTop].res.ziTop) - 6}" class="bl-label" text-anchor="middle">BL top</text>`);
+  }
 
   // Wind arrows at each model level.
   rows.forEach(({ hour }, i) => {
@@ -103,6 +108,20 @@ export function renderPointChart(root, tooltip, rows, ctx) {
     s.push(`<text x="${m.l + pw - 6}" y="${y(air.floorM) - 6}" class="air-label" text-anchor="end">${label}</text>`);
   }
 
+  // Cloud base: solid cloud where cumulus can form (thermals reach the condensation level),
+  // faded where thermals stay below it (blue thermals).
+  // A cloud base above the chart is pinned to the top edge with an ▲ label.
+  rows.forEach(({ res }, i) => {
+    if (res.lcl == null || res.lcl < groundZ) return;
+    const forms = res.cuBase != null;
+    const above = res.lcl > yMax - dz * 3;
+    const cyCloud = above ? m.t + 12 : y(res.lcl);
+    const v = altVal(res.lcl, units.alt);
+    const label = `${above ? '▲' : ''}${units.alt === 'ft' ? `${(v / 1000).toFixed(1)}k` : Math.round(v)}`;
+    s.push(`<g transform="translate(${cx(i) - 12} ${cyCloud - 8})" class="cloud${forms ? '' : ' faint'}">${CLOUD_SVG}</g>`);
+    s.push(`<text x="${cx(i)}" y="${cyCloud + 17}" class="cloud-label${forms ? '' : ' faint'}" text-anchor="middle">${label}</text>`);
+  });
+
   // TOL line with labels.
   const tolPts = rows.map(({ res }, i) => `${cx(i)},${y(res.tol)}`).join(' ');
   s.push(`<polyline points="${tolPts}" class="tol-line"/>`);
@@ -117,8 +136,9 @@ export function renderPointChart(root, tooltip, rows, ctx) {
     }
   });
 
-  // Hour labels and the launch-altitude wind strip.
-  const stripY = m.t + ph + 26;
+  // Hour labels, the launch-altitude wind strip, and surface gusts.
+  const stripY = m.t + ph + 26, gustY = stripY + 58;
+  s.push(`<text x="${m.l - 8}" y="${gustY + 17}" class="axis" text-anchor="end">Gust</text>`);
   const windAlt = site?.launchAlt ?? groundZ;
   let source = null;
   s.push(`<text x="${m.l - 8}" y="${stripY + 22}" class="axis" text-anchor="end">Launch</text>`);
@@ -131,14 +151,18 @@ export function renderPointChart(root, tooltip, rows, ctx) {
     s.push(`<rect x="${m.l + i * cw + 2}" y="${stripY}" width="${cw - 4}" height="52" rx="6" fill="${rating ? RATING_COLOR[rating] : 'var(--strip)'}"/>`);
     if (w) s.push(`<g transform="translate(${cx(i) - 10} ${stripY + 5})">${arrowSvg(w.dir, windColor(w.spd), 20)}</g>`);
     s.push(`<text x="${cx(i)}" y="${stripY + 42}" class="strip-text" text-anchor="middle">${w ? Math.round(windVal(w.spd, units.wind)) : '–'}</text>`);
+    s.push(`<rect x="${m.l + i * cw + 2}" y="${gustY}" width="${cw - 4}" height="26" rx="6" fill="var(--strip)"/>`);
+    s.push(hour.gust == null
+      ? `<text x="${cx(i)}" y="${gustY + 17}" class="strip-text" text-anchor="middle">–</text>`
+      : `<text x="${cx(i)}" y="${gustY + 17}" class="strip-text gust" text-anchor="middle" fill="${gustColor(hour.gust)}">${Math.round(windVal(hour.gust, units.wind))}</text>`);
   });
   const what = source === '80m' ? 'Wind 80 m above ground (this model has no upper-air levels)'
     : `Wind at launch altitude ${fmtAlt(windAlt, units.alt)}`;
-  s.push(`<text x="${m.l + pw}" y="${H - 6}" class="axis" text-anchor="end">${what}, ${windLabel(units.wind)}${site?.faces ? ' · strip color = launch suitability' : ''}</text>`);
+  s.push(`<text x="${m.l + pw}" y="${H - 6}" class="axis" text-anchor="end">${what} · gusts: model surface gusts at the site · ${windLabel(units.wind)}${site?.faces ? ' · launch color = launch suitability' : ''}</text>`);
 
   // Hover targets.
   rows.forEach((_, i) => {
-    s.push(`<rect x="${m.l + i * cw}" y="${m.t}" width="${cw}" height="${ph + 82}" class="hover" data-i="${i}"/>`);
+    s.push(`<rect x="${m.l + i * cw}" y="${m.t}" width="${cw}" height="${gustY + 26 - m.t}" class="hover" data-i="${i}"/>`);
   });
 
   root.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Hourly top of lift and wind chart">${s.join('')}</svg>`;
@@ -166,9 +190,11 @@ function tooltipHtml({ hour, res }, { site, groundZ, units, air }) {
     ['BL top', fmtAlt(res.ziTop, units.alt)],
     ['w*', `${res.wstar.toFixed(2)} m/s`],
     ['Best net climb', fmtClimb(res.maxClimb)],
-    ['Cu base', res.cuBase != null ? fmtAlt(res.cuBase, units.alt) : 'none (blue thermals)'],
+    ['Cloud base', res.lcl == null ? '–' : res.cuBase != null ? `${fmtAlt(res.lcl, units.alt)} (cumulus likely)`
+      : `${fmtAlt(res.lcl, units.alt)}, above the thermals (blue day)`],
     ['Wind at TOL', res.windTol ? `${compass(res.windTol.dir)} ${fmtWind(res.windTol.spd, units.wind)}` : '–'],
     [w?.source === '80m' ? 'Wind 80 m' : 'Wind at launch', w ? `${compass(w.dir)} ${fmtWind(w.spd, units.wind)}` : '–'],
+    ['Gust (surface)', fmtWind(hour.gust, units.wind)],
     ['Heat flux', hour.shf != null ? `${Math.round(hour.shf)} W/m²` : '–'],
     ['Temp 2 m', hour.t2 != null ? `${hour.t2.toFixed(1)} °C` : '–'],
   ];
@@ -206,5 +232,6 @@ export function legendHtml(units) {
   }).join(' ');
   return `<div><b>Net climb</b> (m/s, updraft − sink): ${climb}</div>
     <div><b>Wind</b> (${windLabel(units.wind)}, arrows point downwind): ${wind}</div>
-    <div><span class="ln tol"></span>Top of usable lift <span class="ln bl"></span>Boundary-layer top <span class="ln cu"></span>Cumulus base <span class="ln launch"></span>Launch <span class="ln air"></span>Airspace floor (Class B/C/D)</div>`;
+    <div><span class="ln tol"></span>Top of usable lift <span class="ln bl"></span>Boundary-layer top (thermals stop here) <span class="ln launch"></span>Launch <span class="ln air"></span>Airspace floor (Class B/C/D)</div>
+    <div><svg class="lg-cloud" viewBox="0 0 24 16" aria-hidden="true">${CLOUD_SVG_INNER}</svg> Cloud base where cumulus can form <svg class="lg-cloud faint" viewBox="0 0 24 16" aria-hidden="true">${CLOUD_SVG_INNER}</svg> Cloud base above the thermals (blue day; ▲ = above the chart) <span class="ln sun"></span>Sunrise / sunset</div>`;
 }

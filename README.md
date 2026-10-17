@@ -20,8 +20,11 @@ Then open <http://127.0.0.1:8765>.
 
 - **Point forecast**: hourly time-height chart for one site and day. Sites are **Ed Levin** (693 m launch)
   and **Mission Peak** (585 m launch), or any lat/lon. The chart shows the top-of-lift line (labelled),
-  boundary-layer top, cumulus base, net-climb shading and wind arrows at each model level. Below it is
-  a strip with the **wind at launch altitude**, colored by launch suitability. Hover a column for the numbers.
+  boundary-layer top (dashed, labelled "BL top"), net-climb shading and wind arrows at each model level.
+  **Cloud icons** mark cloud base: solid where cumulus can form, faded where thermals stay below it, and
+  pinned to the top (▲) when it is above the chart. Below the chart: the **wind at launch altitude**,
+  colored by launch suitability, and a **gust** row (the model's surface gusts, the only gusts it
+  provides). Hover a column for the numbers.
   Above the chart: the model run the data came from and when the next run is due, plus sunrise/sunset
   (also drawn on the chart). A **red line** marks the floor of the lowest Class B/C/D airspace over the site.
   For Ed Levin and Mission Peak that's the SFO Class B at 6,000 ft. The model run, model point, ground

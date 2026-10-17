@@ -31,6 +31,8 @@ const h = computeHour({ t2: 27, td2: 5, shf: 300, hpbl: 2000, psfc: 1000, levels
   0, { k: 2.2, sink: 1.3, ziMethod: 'model', excess: 1.5 });
 assert.ok(h.usable && h.tol > 1200 && h.tol < 1800, `computeHour TOL ${h.tol}`);
 near(h.climbAt(h.tol), 0, 1e-3, 'net climb is zero at TOL');
+near(h.lcl, 125 * (27 - 5), 1e-6, 'cloud base = 125 m per degree of spread');
+assert.equal(h.cuBase, null, 'cloud base above the 2,000 m BL: no cumulus');
 
 // Launch wind: interpolated at launch altitude; 80 m fallback when there are no levels
 const lw = launchWind({ windLevels: [{ z: 549, spd: 8, dir: 270 }, { z: 787, spd: 16, dir: 270 }], wind80: { spd: 30, dir: 90 } }, 668);

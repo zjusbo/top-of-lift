@@ -129,6 +129,7 @@ export function computeHour(hour, groundZ, opts) {
     usable,
     tol,                                  // m MSL (== ground when not usable)
     tolAgl: tol - groundZ,
+    lcl: cu != null ? groundZ + cu : null,                 // cloud base if thermals reached it
     cuBase: cu != null && cu < zi ? groundZ + cu : null,   // only when Cu can form inside the BL
     windTol: usable ? windAt(hour.levels, tol) : null,
     climbAt: z => updraft((z - groundZ) / (zi || 1), ws, k) - sink,

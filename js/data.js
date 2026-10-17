@@ -17,8 +17,9 @@ export const MODELS = {
 const POINT_LEVELS = [1000, 975, 950, 925, 900, 875, 850, 825, 800, 775, 750, 700, 650, 600, 550, 500];
 const MAP_LEVELS = [925, 900, 850, 800, 750, 700, 650, 600, 550];   // enough to find a parcel top
 // 80 m wind is the launch-wind fallback for models without upper-air levels (NAM).
+// Gusts only exist at the surface (10 m) in these models.
 const POINT_SURFACE = ['temperature_2m', 'dew_point_2m', 'sensible_heat_flux', 'boundary_layer_height',
-  'surface_pressure', 'wind_speed_80m', 'wind_direction_80m'];
+  'surface_pressure', 'wind_speed_80m', 'wind_direction_80m', 'wind_gusts_10m'];
 const MAP_SURFACE = ['temperature_2m', 'sensible_heat_flux', 'boundary_layer_height',
   'surface_pressure', 'wind_speed_10m', 'wind_direction_10m'];
 const API = 'https://api.open-meteo.com/v1/forecast';
@@ -115,6 +116,7 @@ function parse(loc, levelsAsked) {
       psfc: col('surface_pressure')[i] ?? null,
       wind10: { spd: col('wind_speed_10m')[i] ?? null, dir: col('wind_direction_10m')[i] ?? null },
       wind80: { spd: col('wind_speed_80m')[i] ?? null, dir: col('wind_direction_80m')[i] ?? null },
+      gust: col('wind_gusts_10m')[i] ?? null,
       levels,
       windLevels: all.filter(l => l.spd != null && l.dir != null),
     };
